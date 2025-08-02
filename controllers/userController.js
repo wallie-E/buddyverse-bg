@@ -1,0 +1,110 @@
+const { pool } = require('../config/database');
+const { success, error } = require('../utils/response');
+const { validateUpdateProfile } = require('../utils/validation');
+
+/**
+ * 更新用户信息
+ */
+const updateProfile = async (req, res) => {
+  try {
+    const { error: validationError } = validateUpdateProfile(req.body);
+    if (validationError) {
+      return error(res, validationError.details[0].message, 400);
+    }
+
+    const userId = req.user.id;
+    const { nickname, gender, signature } = req.body;
+
+    // 构建更新字段
+    const updateFields = [];
+    const updateValues = [];
+
+    if (nickname !== undefined) {
+      updateFields.push('nickname = ?');
+      updateValues.push(nickname);
+    }
+    if (gender !== undefined) {
+      updateFields.push('gender = ?');
+      updateValues.push(gender);
+    }
+    if (signature !== undefined) {
+      updateFields.push('signature = ?');
+      updateValues.push(signature);
+    }
+
+    if (updateFields.length === 0) {
+      return error(res, '没有要更新的字段', 400);
+    }
+
+    updateFields.push('updated_at = CURRENT_TIMESTAMP');
+    updateValues.push(userId);
+
+    // 执行更新
+    await pool.execute(
+      `UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`,
+      updateValues
+    );
+
+    // 查询更新后的用户信息
+    const [users] = await pool.execute(
+      'SELECT id, email, nickname, gender, avatar, signature, role FROM users WHERE id = ?',
+      [userId]
+    );
+
+    return success(res, users[0], '更新成功');
+  } catch (err) {
+    console.error('更新用户信息失败:', err);
+    return error(res, '更新失败', 500);
+  }
+};
+
+/**
+ * 获取用户发布的帖子列表
+ */
+const getUserPosts = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+
+    // 查询帖子总数
+    const [countResult] = await pool.execute(
+      'SELECT COUNT(*) as total FROM posts WHERE user_id = ? AND status = "active"',
+      [userId]
+    );
+    const total = countResult[0].total;
+
+    // 查询帖子列表
+    const [posts] = await pool.execute(`
+      SELECT 
+        p.id, p.content, p.location, p.comment_count, p.created_at,
+        pc.name as category_name,
+        ps.name as subcategory_name
+      FROM posts p
+      LEFT JOIN post_categories pc ON p.category_id = pc.id
+      LEFT JOIN post_subcategories ps ON p.subcategory_id = ps.id
+      WHERE p.user_id = ? AND p.status = "active"
+      ORDER BY p.created_at DESC
+      LIMIT ? OFFSET ?
+    `, [userId, limit, offset]);
+
+    return success(res, {
+      list: posts,
+      pagination: {
+        total,
+        page,
+        limit,
+        pages: Math.ceil(total / limit)
+      }
+    }, '获取成功');
+  } catch (err) {
+    console.error('获取用户帖子失败:', err);
+    return error(res, '获取失败', 500);
+  }
+};
+
+module.exports = {
+  updateProfile,
+  getUserPosts
+}; 

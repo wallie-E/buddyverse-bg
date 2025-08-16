@@ -71,14 +71,14 @@ const getUserPosts = async (req, res) => {
     // 查询帖子总数
     const [countResult] = await pool.execute(
       'SELECT COUNT(*) as total FROM posts WHERE user_id = ? AND status = "active"',
-      [userId]
+      [`${userId}`]
     );
     const total = countResult[0].total;
 
     // 查询帖子列表
     const [posts] = await pool.execute(`
       SELECT 
-        p.id, p.content, p.location, p.comment_count, p.created_at,
+        p.id, p.content, p.location, p.comment_count, p.comment_visibility, p.created_at,
         pc.name as category_name,
         ps.name as subcategory_name
       FROM posts p
@@ -87,7 +87,7 @@ const getUserPosts = async (req, res) => {
       WHERE p.user_id = ? AND p.status = "active"
       ORDER BY p.created_at DESC
       LIMIT ? OFFSET ?
-    `, [userId, limit, offset]);
+    `, [`${userId}`, `${limit}`, `${offset}`]);
 
     return success(res, {
       list: posts,

@@ -13,7 +13,7 @@ const createComment = async (req, res) => {
     }
 
     const userId = req.user.id;
-    const { post_id, content, parent_id } = req.body;
+    const { post_id, content } = req.body;
 
     // 验证帖子是否存在
     const [posts] = await pool.execute(
@@ -27,32 +27,18 @@ const createComment = async (req, res) => {
 
     const post = posts[0];
 
-    // 检查评论权限
-    if (post.comment_visibility === 'private' && post.user_id !== userId) {
-      return error(res, '该帖子评论仅作者可见', 403);
-    }
-
-    // 如果是回复，验证父评论是否存在且属于该帖子
-    if (parent_id) {
-      const [parentComments] = await pool.execute(
-        'SELECT id, user_id FROM comments WHERE id = ? AND post_id = ? AND status = "active"',
-        [parent_id, post_id]
-      );
-
-      if (parentComments.length === 0) {
-        return error(res, '父评论不存在', 400);
-      }
-    }
+    // 对于私有帖子，所有人都可以添加评论，但只有帖子作者能看到
+    // 因此这里不需要检查评论权限
 
     // 开启事务
     const connection = await pool.getConnection();
     await connection.beginTransaction();
 
     try {
-      // 创建评论
+      // 创建评论（不支持回复，parent_id始终为null）
       const [result] = await connection.execute(
-        'INSERT INTO comments (post_id, user_id, parent_id, content) VALUES (?, ?, ?, ?)',
-        [post_id, userId, parent_id || null, content]
+        'INSERT INTO comments (post_id, user_id, parent_id, content) VALUES (?, ?, NULL, ?)',
+        [post_id, userId, content]
       );
 
       const commentId = result.insertId;
@@ -63,29 +49,12 @@ const createComment = async (req, res) => {
         [post_id]
       );
 
-      // 创建通知
-      if (parent_id) {
-        // 回复评论的通知
-        const [parentComments] = await connection.execute(
-          'SELECT user_id FROM comments WHERE id = ?',
-          [parent_id]
+      // 创建通知 - 只通知帖子作者
+      if (post.user_id !== userId) {
+        await connection.execute(
+          'INSERT INTO notifications (user_id, type, title, content, related_id, related_type) VALUES (?, ?, ?, ?, ?, ?)',
+          [post.user_id, 'comment', '帖子评论', `有人评论了您的帖子：${content}`, commentId, 'comment']
         );
-        const parentUserId = parentComments[0].user_id;
-
-        if (parentUserId !== userId) {
-          await connection.execute(
-            'INSERT INTO notifications (user_id, type, title, content, related_id, related_type) VALUES (?, ?, ?, ?, ?, ?)',
-            [parentUserId, 'reply', '评论回复', `有人回复了您的评论：${content}`, commentId, 'comment']
-          );
-        }
-      } else {
-        // 评论帖子的通知
-        if (post.user_id !== userId) {
-          await connection.execute(
-            'INSERT INTO notifications (user_id, type, title, content, related_id, related_type) VALUES (?, ?, ?, ?, ?, ?)',
-            [post.user_id, 'comment', '帖子评论', `有人评论了您的帖子：${content}`, commentId, 'comment']
-          );
-        }
       }
 
       await connection.commit();
@@ -93,7 +62,7 @@ const createComment = async (req, res) => {
       // 查询创建的评论详情
       const [comments] = await pool.execute(`
         SELECT 
-          c.id, c.content, c.created_at, c.parent_id,
+          c.id, c.content, c.created_at,
           u.nickname as author_name
         FROM comments c
         LEFT JOIN users u ON c.user_id = u.id
@@ -141,14 +110,14 @@ const getPostComments = async (req, res) => {
       return error(res, '该帖子评论仅作者可见', 403);
     }
 
-    // 查询一级评论总数
+    // 查询评论总数（只查询一级评论，parent_id为NULL）
     const [countResult] = await pool.execute(
       'SELECT COUNT(*) as total FROM comments WHERE post_id = ? AND parent_id IS NULL AND status = "active"',
       [postId]
     );
     const total = countResult[0].total;
 
-    // 查询一级评论
+    // 查询评论列表（不包含回复，因为不支持回复功能）
     const [comments] = await pool.execute(`
       SELECT 
         c.id, c.content, c.created_at,
@@ -156,24 +125,9 @@ const getPostComments = async (req, res) => {
       FROM comments c
       LEFT JOIN users u ON c.user_id = u.id
       WHERE c.post_id = ? AND c.parent_id IS NULL AND c.status = "active"
-      ORDER BY c.created_at ASC
+      ORDER BY c.created_at DESC
       LIMIT ? OFFSET ?
-    `, [postId, limit, offset]);
-
-    // 查询每个一级评论的回复
-    for (let comment of comments) {
-      const [replies] = await pool.execute(`
-        SELECT 
-          c.id, c.content, c.created_at,
-          u.nickname as author_name
-        FROM comments c
-        LEFT JOIN users u ON c.user_id = u.id
-        WHERE c.parent_id = ? AND c.status = "active"
-        ORDER BY c.created_at ASC
-      `, [comment.id]);
-
-      comment.replies = replies;
-    }
+    `, [`${postId}`, `${limit}`, `${offset}`]);
 
     return paginate(res, comments, total, page, limit);
   } catch (err) {
@@ -213,21 +167,16 @@ const deleteComment = async (req, res) => {
     await connection.beginTransaction();
 
     try {
-      // 软删除评论及其回复
+      // 软删除评论（简化：只删除单条评论，不考虑子回复）
       await connection.execute(
-        'UPDATE comments SET status = "deleted" WHERE id = ? OR parent_id = ?',
-        [commentId, commentId]
+        'UPDATE comments SET status = "deleted" WHERE id = ?',
+        [commentId]
       );
 
-      // 更新帖子评论数（减去删除的评论数量）
-      const [deletedCount] = await connection.execute(
-        'SELECT COUNT(*) as count FROM comments WHERE (id = ? OR parent_id = ?) AND status = "deleted"',
-        [commentId, commentId]
-      );
-
+      // 更新帖子评论数（减1）
       await connection.execute(
-        'UPDATE posts SET comment_count = comment_count - ? WHERE id = ?',
-        [deletedCount[0].count, comment.post_id]
+        'UPDATE posts SET comment_count = comment_count - 1 WHERE id = ?',
+        [comment.post_id]
       );
 
       await connection.commit();

@@ -35,7 +35,7 @@ app.use(express.urlencoded({ extended: true })); // URL编码解析
 // 速率限制
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15分钟
-  max: 100, // 限制每个IP每个窗口期最多100个请求
+  max: 1000, // 限制每个IP每个窗口期最多100个请求
   message: {
     success: false,
     message: '请求过于频繁，请稍后再试'

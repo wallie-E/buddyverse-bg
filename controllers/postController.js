@@ -76,8 +76,11 @@ const getPosts = async (req, res) => {
     const offset = (page - 1) * limit;
 
     // 构建查询条件
-    let whereConditions = ['p.status = "active"'];
+    let whereConditions = [];
     let queryParams = [];
+
+    // 始终包含基础条件
+    whereConditions.push('p.status = "active"');
 
     if (category_id) {
       whereConditions.push('p.category_id = ?');
@@ -89,19 +92,22 @@ const getPosts = async (req, res) => {
       queryParams.push(subcategory_id);
     }
 
-    const whereClause = whereConditions.join(' AND ');
+    // 处理空WHERE子句的情况
+    const whereClause = whereConditions.length > 0 ? 
+      `WHERE ${whereConditions.join(' AND ')}` : '';
 
-    // 查询帖子总数
+    // 查询总数
     const [countResult] = await pool.execute(
-      `SELECT COUNT(*) as total FROM posts p WHERE ${whereClause}`,
+      `SELECT COUNT(*) as total FROM posts p ${whereClause}`,
       queryParams
     );
     const total = countResult[0].total;
+   
 
-    // 查询帖子列表
-    const [posts] = await pool.execute(`
+    // 查询帖子列表（关键修改：参数处理）
+    const sqlQuery = `
       SELECT 
-        p.id, p.content, p.location, p.comment_count, p.created_at,
+        p.id, p.content, p.location, p.comment_count, p.comment_visibility, p.created_at,
         u.nickname as author_name,
         pc.name as category_name,
         ps.name as subcategory_name
@@ -109,10 +115,17 @@ const getPosts = async (req, res) => {
       LEFT JOIN users u ON p.user_id = u.id
       LEFT JOIN post_categories pc ON p.category_id = pc.id
       LEFT JOIN post_subcategories ps ON p.subcategory_id = ps.id
-      WHERE ${whereClause}
+      ${whereClause}
       ORDER BY p.created_at DESC
       LIMIT ? OFFSET ?
-    `, [...queryParams, limit, offset]);
+    `;
+
+
+    // 正确传递参数：基础参数 + limit/offset
+    const [posts] = await pool.execute(
+      sqlQuery,
+      [...queryParams, `${limit}`, `${offset}`] // 保持参数顺序
+    );
 
     return paginate(res, posts, total, page, limit);
   } catch (err) {

@@ -80,7 +80,7 @@ const validateCreatePost = (data) => {
   return schema.validate(data);
 };
 
-// 评论创建验证
+// 评论创建验证（简化版：不支持回复）
 const validateCreateComment = (data) => {
   const schema = Joi.object({
     post_id: Joi.number().integer().positive().required().messages({
@@ -92,10 +92,6 @@ const validateCreateComment = (data) => {
       'string.min': '评论内容不能为空',
       'string.max': '评论内容不能超过500字',
       'any.required': '评论内容不能为空'
-    }),
-    parent_id: Joi.number().integer().positive().allow(null).messages({
-      'number.base': '父评论ID必须是数字',
-      'number.positive': '父评论ID必须是正数'
     })
   });
   return schema.validate(data);

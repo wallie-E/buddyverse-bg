@@ -8,11 +8,15 @@ const dbConfig = {
   database: 'social_platform',
   charset: 'utf8mb4',
   timezone: '+08:00',
-  acquireTimeout: 60000,
-  timeout: 60000,
-  reconnect: true,
+  // MySQL2 connection pool options
   connectionLimit: 10,
-  queueLimit: 0
+  queueLimit: 0,
+  waitForConnections: true,
+  // Connection timeout options
+  connectTimeout: 60000,
+  // Reconnection options
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 0
 };
 
 // 创建连接池

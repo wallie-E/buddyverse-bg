@@ -13,11 +13,11 @@ const getNotifications = async (req, res) => {
     const offset = (page - 1) * limit;
 
     // 构建查询条件
-    let whereConditions = ['user_id = ?'];
+    let whereConditions = ['n.user_id = ?'];
     let queryParams = [userId];
 
     if (type) {
-      whereConditions.push('type = ?');
+      whereConditions.push('n.type = ?');
       queryParams.push(type);
     }
 
@@ -25,19 +25,33 @@ const getNotifications = async (req, res) => {
 
     // 查询通知总数
     const [countResult] = await pool.execute(
-      `SELECT COUNT(*) as total FROM notifications WHERE ${whereClause}`,
+      `SELECT COUNT(*) as total FROM notifications n WHERE ${whereClause}`,
       queryParams
     );
     const total = countResult[0].total;
 
-    // 查询通知列表
+    // 查询通知列表，通过LEFT JOIN获取对应的帖子ID
     const [notifications] = await pool.execute(`
-      SELECT id, type, title, content, related_id, related_type, is_read, created_at
-      FROM notifications 
+      SELECT 
+        n.id, 
+        n.type, 
+        n.title, 
+        n.content, 
+        n.related_id, 
+        n.related_type, 
+        n.is_read, 
+        n.created_at,
+        CASE 
+          WHEN n.related_type = 'post' THEN n.related_id
+          WHEN n.related_type = 'comment' THEN c.post_id
+          ELSE NULL
+        END as post_id
+      FROM notifications n
+      LEFT JOIN comments c ON n.related_type = 'comment' AND n.related_id = c.id
       WHERE ${whereClause}
-      ORDER BY created_at DESC
+      ORDER BY n.created_at DESC
       LIMIT ? OFFSET ?
-    `, [...queryParams, limit, offset]);
+    `, [...queryParams, `${limit}`, `${offset}`]);
 
     return paginate(res, notifications, total, page, limit);
   } catch (err) {

@@ -157,53 +157,91 @@ const initDatabase = async () => {
     `);
     console.log('通知表创建成功');
 
-    // 插入默认分类数据
-    try {
-      await connection.execute(`
-        INSERT INTO post_categories (name, description, sort_order) VALUES
-        ('干饭搭子', '寻找一起吃饭的伙伴', 1),
-        ('运动搭子', '寻找运动伙伴', 2),
-        ('学习搭子', '寻找学习伙伴', 3),
-        ('游戏搭子', '寻找游戏伙伴', 4)
-      `);
-      console.log('默认分类数据插入成功');
-    } catch (err) {
-      if (err.code !== 'ER_DUP_ENTRY') {
-        throw err;
-      }
-      console.log('默认分类数据已存在');
-    }
+    // 按照外键依赖顺序清空数据
+    console.log('开始清空所有数据...');
+    
+    // 1. 先清空通知数据
+    await connection.execute('DELETE FROM notifications');
+    await connection.execute('ALTER TABLE notifications AUTO_INCREMENT = 1');
+    console.log('清空通知数据');
+    
+    // 2. 清空评论数据  
+    await connection.execute('DELETE FROM comments');
+    await connection.execute('ALTER TABLE comments AUTO_INCREMENT = 1');
+    console.log('清空评论数据');
+    
+    // 3. 清空帖子数据
+    await connection.execute('DELETE FROM posts');
+    await connection.execute('ALTER TABLE posts AUTO_INCREMENT = 1');
+    console.log('清空帖子数据');
+    
+    // 4. 清空用户数据
+    await connection.execute('DELETE FROM users');
+    await connection.execute('ALTER TABLE users AUTO_INCREMENT = 1');
+    console.log('清空用户数据');
+    
+    // 5. 清空细分类型数据
+    await connection.execute('DELETE FROM post_subcategories');
+    await connection.execute('ALTER TABLE post_subcategories AUTO_INCREMENT = 1');
+    console.log('清空细分类型数据');
+    
+    // 6. 清空主分类数据
+    await connection.execute('DELETE FROM post_categories');
+    await connection.execute('ALTER TABLE post_categories AUTO_INCREMENT = 1');
+    console.log('清空主分类数据');
+
+    // 重新插入默认分类数据
+    await connection.execute(`
+      INSERT INTO post_categories (name, description, sort_order) VALUES
+      ('干饭搭子', '寻找一起吃饭的伙伴', 1),
+      ('运动搭子', '寻找运动伙伴', 2),
+      ('学习搭子', '寻找学习伙伴', 3),
+      ('游戏搭子', '寻找游戏伙伴', 4)
+    `);
+    console.log('默认分类数据插入成功');
 
     // 插入细分类型数据
-    try {
-      await connection.execute(`
-        INSERT INTO post_subcategories (category_id, name, sort_order) VALUES
-        (1, '火锅', 1), (1, '烧烤', 2), (1, '炒菜', 3), (1, '面条', 4), (1, '其他', 99),
-        (2, '羽毛球', 1), (2, '篮球', 2), (2, '乒乓球', 3), (2, '跑步', 4), (2, '其他', 99),
-        (3, '编程', 1), (3, '英文', 2), (3, '数学', 3), (3, '物理', 4), (3, '金融', 5), (3, '创业', 6), (3, '其他', 99),
-        (4, '王者荣耀', 1), (4, '和平精英', 2), (4, 'LOL', 3), (4, '其他', 99)
-      `);
-      console.log('细分类型数据插入成功');
-    } catch (err) {
-      if (err.code !== 'ER_DUP_ENTRY') {
-        throw err;
-      }
-      console.log('细分类型数据已存在');
-    }
+    await connection.execute(`
+      INSERT INTO post_subcategories (category_id, name, sort_order) VALUES
+      (1, '火锅', 1), (1, '烧烤', 2), (1, '炒菜', 3), (1, '面条', 4), (1, '其他', 99),
+      (2, '羽毛球', 1), (2, '篮球', 2), (2, '乒乓球', 3), (2, '跑步', 4), (2, '其他', 99),
+      (3, '编程', 1), (3, '英文', 2), (3, '数学', 3), (3, '物理', 4), (3, '金融', 5), (3, '创业', 6), (3, '其他', 99),
+      (4, '王者荣耀', 1), (4, '和平精英', 2), (4, 'LOL', 3), (4, '其他', 99)
+    `);
+    console.log('细分类型数据插入成功');
 
     // 创建默认管理员账户
-    try {
-      await connection.execute(`
-        INSERT INTO users (email, password, nickname, role) VALUES
-        ('admin@example.com', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '系统管理员', 'admin')
-      `);
-      console.log('默认管理员账户创建成功');
-    } catch (err) {
-      if (err.code !== 'ER_DUP_ENTRY') {
-        throw err;
-      }
-      console.log('默认管理员账户已存在');
-    }
+    await connection.execute(`
+      INSERT INTO users (email, password, nickname, role) VALUES
+      ('admin@example.com', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '系统管理员', 'admin')
+    `);
+    console.log('默认管理员账户创建成功');
+
+    // 创建测试用户
+    await connection.execute(`
+      INSERT INTO users (email, password, nickname, role) VALUES
+      ('test@example.com', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '测试用户', 'user')
+    `);
+    console.log('测试用户创建成功');
+
+    // 创建测试帖子
+    await connection.execute(`
+      INSERT INTO posts (user_id, content, location, category_id, subcategory_id, created_at) VALUES
+      (2, '这是我的第一篇帖子，寻找火锅搭子！', '北京市朝阳区', 1, 1, '2025-08-02 08:24:20')
+    `);
+    console.log('测试帖子创建成功');
+
+    // 创建测试评论
+    await connection.execute(`
+      INSERT INTO comments (post_id, user_id, content, created_at) VALUES
+      (1, 1, '我也想去吃火锅！', '2025-08-02 08:30:00')
+    `);
+    
+    // 更新帖子的评论数量
+    await connection.execute(`
+      UPDATE posts SET comment_count = 1 WHERE id = 1
+    `);
+    console.log('测试评论创建成功');
 
     console.log('数据库初始化完成！');
     

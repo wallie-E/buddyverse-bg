@@ -1,3 +1,6 @@
+// 设置时区为UTC+8
+process.env.TZ = 'Asia/Shanghai';
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');

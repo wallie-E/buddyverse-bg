@@ -1,3 +1,6 @@
+// 设置时区为UTC+8
+process.env.TZ = 'Asia/Shanghai';
+
 const mysql = require('mysql2/promise');
 
 const initDatabase = async () => {
@@ -27,9 +30,14 @@ const initDatabase = async () => {
       port: 3306,
       user: 'root',
       password: 'zt6s45rk',
-      database: 'social_platform'
+      database: 'social_platform',
+      timezone: '+08:00'
     });
     console.log('连接到数据库成功');
+    
+    // 设置数据库时区为UTC+8
+    await connection.execute("SET time_zone = '+08:00'");
+    console.log('数据库时区设置为UTC+8');
     
     // 创建用户表
     await connection.execute(`

@@ -22,6 +22,11 @@ const dbConfig = {
 // 创建连接池
 const pool = mysql.createPool(dbConfig);
 
+// 设置连接池的时区
+pool.on('connection', (connection) => {
+  connection.execute("SET time_zone = '+08:00'");
+});
+
 // 测试数据库连接
 const testConnection = async () => {
   try {

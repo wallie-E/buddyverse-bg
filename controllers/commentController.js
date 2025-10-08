@@ -120,7 +120,7 @@ const getPostComments = async (req, res) => {
     // 查询评论列表（不包含回复，因为不支持回复功能）
     const [comments] = await pool.execute(`
       SELECT 
-        c.id, c.content, c.created_at,
+        c.id, c.user_id, c.content, c.created_at,
         u.nickname as author_name
       FROM comments c
       LEFT JOIN users u ON c.user_id = u.id

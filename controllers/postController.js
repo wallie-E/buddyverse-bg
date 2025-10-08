@@ -107,7 +107,7 @@ const getPosts = async (req, res) => {
     // 查询帖子列表（关键修改：参数处理）
     const sqlQuery = `
       SELECT 
-        p.id, p.content, p.location, p.comment_count, p.comment_visibility, p.created_at,
+        p.id, p.user_id, p.content, p.location, p.comment_count, p.comment_visibility, p.created_at,
         u.nickname as author_name,
         pc.name as category_name,
         ps.name as subcategory_name

@@ -59,6 +59,73 @@ const updateProfile = async (req, res) => {
 };
 
 /**
+ * 获取用户资料（公开信息）
+ */
+const getUserProfile = async (req, res) => {
+  try {
+    const { user_id, page = 1, limit = 10 } = req.body;
+    const offset = (page - 1) * limit;
+
+    // 验证用户ID是否为有效数字
+    if (!user_id || isNaN(user_id)) {
+      return error(res, '用户ID无效', 400);
+    }
+
+    // 查询用户基本信息（只返回公开信息）
+    const [users] = await pool.execute(
+      'SELECT id, nickname, gender, avatar, signature, created_at FROM users WHERE id = ? AND status = "active"',
+      [user_id]
+    );
+
+    if (users.length === 0) {
+      return error(res, '用户不存在', 404);
+    }
+
+    const userInfo = users[0];
+
+    // 查询用户发布的帖子总数
+    const [countResult] = await pool.execute(
+      'SELECT COUNT(*) as total FROM posts WHERE user_id = ? AND status = "active"',
+      [user_id]
+    );
+    const total = countResult[0].total;
+
+    // 查询用户发布的帖子列表
+    const [posts] = await pool.execute(`
+      SELECT 
+        p.id, p.content, p.location, p.comment_count, p.comment_visibility, p.created_at,
+        pc.name as category_name,
+        ps.name as subcategory_name
+      FROM posts p
+      LEFT JOIN post_categories pc ON p.category_id = pc.id
+      LEFT JOIN post_subcategories ps ON p.subcategory_id = ps.id
+      WHERE p.user_id = ? AND p.status = "active"
+      ORDER BY p.created_at DESC
+      LIMIT ? OFFSET ?
+    `, [user_id, `${limit}`, `${offset}`]);
+
+    // 构建返回数据
+    const responseData = {
+      ...userInfo,
+      posts: {
+        list: posts,
+        pagination: {
+          total,
+          page,
+          limit,
+          pages: Math.ceil(total / limit)
+        }
+      }
+    };
+
+    return success(res, responseData, '获取用户资料成功');
+  } catch (err) {
+    console.error('获取用户资料失败:', err);
+    return error(res, '获取失败', 500);
+  }
+};
+
+/**
  * 获取用户发布的帖子列表
  */
 const getUserPosts = async (req, res) => {
@@ -106,5 +173,6 @@ const getUserPosts = async (req, res) => {
 
 module.exports = {
   updateProfile,
+  getUserProfile,
   getUserPosts
 }; 

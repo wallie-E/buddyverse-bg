@@ -35,9 +35,9 @@ const createComment = async (req, res) => {
     await connection.beginTransaction();
 
     try {
-      // 创建评论（不支持回复，parent_id始终为null）
+      // 创建评论
       const [result] = await connection.execute(
-        'INSERT INTO comments (post_id, user_id, parent_id, content) VALUES (?, ?, NULL, ?)',
+        'INSERT INTO comments (post_id, user_id, content) VALUES (?, ?, ?)',
         [post_id, userId, content]
       );
 
@@ -110,21 +110,21 @@ const getPostComments = async (req, res) => {
       return error(res, '该帖子评论仅作者可见', 403);
     }
 
-    // 查询评论总数（只查询一级评论，parent_id为NULL）
+    // 查询评论总数
     const [countResult] = await pool.execute(
-      'SELECT COUNT(*) as total FROM comments WHERE post_id = ? AND parent_id IS NULL AND status = "active"',
+      'SELECT COUNT(*) as total FROM comments WHERE post_id = ? AND status = "active"',
       [postId]
     );
     const total = countResult[0].total;
 
-    // 查询评论列表（不包含回复，因为不支持回复功能）
+    // 查询评论列表
     const [comments] = await pool.execute(`
       SELECT 
         c.id, c.user_id, c.content, c.created_at,
         u.nickname as author_name
       FROM comments c
       LEFT JOIN users u ON c.user_id = u.id
-      WHERE c.post_id = ? AND c.parent_id IS NULL AND c.status = "active"
+      WHERE c.post_id = ? AND c.status = "active"
       ORDER BY c.created_at DESC
       LIMIT ? OFFSET ?
     `, [`${postId}`, `${limit}`, `${offset}`]);
@@ -167,7 +167,7 @@ const deleteComment = async (req, res) => {
     await connection.beginTransaction();
 
     try {
-      // 软删除评论（简化：只删除单条评论，不考虑子回复）
+      // 软删除评论
       await connection.execute(
         'UPDATE comments SET status = "deleted" WHERE id = ?',
         [commentId]

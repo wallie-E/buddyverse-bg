@@ -208,7 +208,7 @@ const getComments = async (req, res) => {
     // 查询评论列表
     const [comments] = await pool.execute(`
       SELECT 
-        c.id, c.content, c.parent_id, c.status, c.created_at,
+        c.id, c.content, c.status, c.created_at,
         u.nickname as author_name, u.email as author_email,
         p.id as post_id, p.content as post_content
       FROM comments c
@@ -393,16 +393,16 @@ const deleteComment = async (req, res) => {
     await connection.beginTransaction();
 
     try {
-      // 软删除评论及其回复
+      // 软删除评论
       await connection.execute(
-        'UPDATE comments SET status = "deleted" WHERE id = ? OR parent_id = ?',
-        [commentId, commentId]
+        'UPDATE comments SET status = "deleted" WHERE id = ?',
+        [commentId]
       );
 
       // 更新帖子评论数
       const [deletedCount] = await connection.execute(
-        'SELECT COUNT(*) as count FROM comments WHERE (id = ? OR parent_id = ?) AND status = "deleted"',
-        [commentId, commentId]
+        'SELECT COUNT(*) as count FROM comments WHERE id = ? AND status = "deleted"',
+        [commentId]
       );
 
       await connection.execute(

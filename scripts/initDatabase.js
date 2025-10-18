@@ -39,14 +39,23 @@ const initDatabase = async () => {
     await connection.execute("SET time_zone = '+08:00'");
     console.log('数据库时区设置为UTC+8');
     
+    // 先删除所有表（按依赖关系顺序）
+    await connection.execute('DROP TABLE IF EXISTS notifications');
+    await connection.execute('DROP TABLE IF EXISTS comments');
+    await connection.execute('DROP TABLE IF EXISTS posts');
+    await connection.execute('DROP TABLE IF EXISTS post_subcategories');
+    await connection.execute('DROP TABLE IF EXISTS post_categories');
+    await connection.execute('DROP TABLE IF EXISTS users');
+    console.log('删除所有现有表');
+    
     // 创建用户表
     await connection.execute(`
-      CREATE TABLE IF NOT EXISTS users (
+      CREATE TABLE users (
         id INT PRIMARY KEY AUTO_INCREMENT,
         email VARCHAR(255) UNIQUE NOT NULL,
         password VARCHAR(255) NOT NULL,
         nickname VARCHAR(100) NOT NULL,
-        gender ENUM('male', 'female', 'other') DEFAULT 'other',
+        gender ENUM('male', 'female') DEFAULT 'male',
         avatar VARCHAR(500) DEFAULT NULL,
         signature VARCHAR(200) DEFAULT NULL,
         role ENUM('user', 'admin') DEFAULT 'user',
@@ -62,7 +71,7 @@ const initDatabase = async () => {
 
     // 创建帖子主分类表
     await connection.execute(`
-      CREATE TABLE IF NOT EXISTS post_categories (
+      CREATE TABLE post_categories (
         id INT PRIMARY KEY AUTO_INCREMENT,
         name VARCHAR(50) NOT NULL UNIQUE,
         description VARCHAR(200),
@@ -78,7 +87,7 @@ const initDatabase = async () => {
 
     // 创建帖子细分类型表
     await connection.execute(`
-      CREATE TABLE IF NOT EXISTS post_subcategories (
+      CREATE TABLE post_subcategories (
         id INT PRIMARY KEY AUTO_INCREMENT,
         category_id INT NOT NULL,
         name VARCHAR(50) NOT NULL,
@@ -97,7 +106,7 @@ const initDatabase = async () => {
 
     // 创建帖子表
     await connection.execute(`
-      CREATE TABLE IF NOT EXISTS posts (
+      CREATE TABLE posts (
         id INT PRIMARY KEY AUTO_INCREMENT,
         user_id INT NOT NULL,
         content TEXT NOT NULL,
@@ -123,21 +132,18 @@ const initDatabase = async () => {
 
     // 创建评论表
     await connection.execute(`
-      CREATE TABLE IF NOT EXISTS comments (
+      CREATE TABLE comments (
         id INT PRIMARY KEY AUTO_INCREMENT,
         post_id INT NOT NULL,
         user_id INT NOT NULL,
-        parent_id INT DEFAULT NULL,
         content TEXT NOT NULL,
         status ENUM('active', 'deleted') DEFAULT 'active',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-        FOREIGN KEY (parent_id) REFERENCES comments(id) ON DELETE CASCADE,
         INDEX idx_post (post_id),
         INDEX idx_user (user_id),
-        INDEX idx_parent (parent_id),
         INDEX idx_status (status),
         INDEX idx_created (created_at)
       )
@@ -146,7 +152,7 @@ const initDatabase = async () => {
 
     // 创建通知表
     await connection.execute(`
-      CREATE TABLE IF NOT EXISTS notifications (
+      CREATE TABLE notifications (
         id INT PRIMARY KEY AUTO_INCREMENT,
         user_id INT NOT NULL,
         type ENUM('comment', 'reply', 'system') NOT NULL,
@@ -204,17 +210,19 @@ const initDatabase = async () => {
       ('干饭搭子', '寻找一起吃饭的伙伴', 1),
       ('运动搭子', '寻找运动伙伴', 2),
       ('学习搭子', '寻找学习伙伴', 3),
-      ('游戏搭子', '寻找游戏伙伴', 4)
+      ('游戏搭子', '寻找游戏伙伴', 4),
+      ('旅行搭子', '寻找旅行伙伴', 5)
     `);
     console.log('默认分类数据插入成功');
 
     // 插入细分类型数据
     await connection.execute(`
       INSERT INTO post_subcategories (category_id, name, sort_order) VALUES
-      (1, '火锅', 1), (1, '烧烤', 2), (1, '炒菜', 3), (1, '面条', 4), (1, '其他', 99),
-      (2, '羽毛球', 1), (2, '篮球', 2), (2, '乒乓球', 3), (2, '跑步', 4), (2, '其他', 99),
+      (1, '火锅', 1), (1, '烧烤', 2), (1, '炒菜', 3), (1, '面条', 4), (1, '烤肉', 5), (1, '西餐', 6), (1, '海鲜', 7), (1, '日料', 8), (1, '韩式', 9), (1, '其他', 99),
+      (2, '羽毛球', 1), (2, '篮球', 2), (2, '乒乓球', 3), (2, '跑步', 4), (2, '游泳', 5), (2, '健身', 6), (2, '骑行', 7), (2, '其他', 99),
       (3, '编程', 1), (3, '英文', 2), (3, '数学', 3), (3, '物理', 4), (3, '金融', 5), (3, '创业', 6), (3, '其他', 99),
-      (4, '王者荣耀', 1), (4, '和平精英', 2), (4, 'LOL', 3), (4, '其他', 99)
+      (4, '王者荣耀', 1), (4, '和平精英', 2), (4, 'LOL', 3), (4, '元神', 4), (4, '金铲铲', 5), (4, '其他', 99),
+      (5, '国内游', 1), (5, '出国游', 2), (5, '周末游', 3), (5, '自驾游', 4), (5, '徒步', 5), (5, '摄影', 6), (5, '露营', 7), (5, '其他', 99)
     `);
     console.log('细分类型数据插入成功');
 

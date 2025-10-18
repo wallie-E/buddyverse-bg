@@ -170,8 +170,7 @@
 ```json
 {
   "post_id": 1,
-  "content": "评论内容",
-  "parent_id": null // 一级评论为null，二级回复填父评论ID
+  "content": "评论内容"
 }
 ```
 
@@ -339,7 +338,6 @@
 - `id` - 主键
 - `post_id` - 帖子ID
 - `user_id` - 用户ID
-- `parent_id` - 父评论ID (一级评论为null)
 - `content` - 内容
 - `status` - 状态 (active/deleted)
 - `created_at` - 创建时间

@@ -9,10 +9,10 @@ const initDatabase = async () => {
   try {
     // 先连接到数据库服务器（不指定数据库）
     const tempConnection = await mysql.createConnection({
-      host: 'test-db-mysql.ns-z580ek8h.svc',
+      host: 'prod-db-mysql.ns-z580ek8h.svc',
       port: 3306,
       user: 'root',
-      password: 'zrjt6s5n'
+      password: 'ddqwh95j'
     });
 
     console.log('开始初始化数据库...');
@@ -26,10 +26,10 @@ const initDatabase = async () => {
     
     // 重新连接到目标数据库
     connection = await mysql.createConnection({
-      host: 'test-db-mysql.ns-z580ek8h.svc',
+      host: 'prod-db-mysql.ns-z580ek8h.svc',
       port: 3306,
       user: 'root',
-      password: 'zrjt6s5n',
+      password: 'ddqwh95j',
       database: 'social_platform',
       timezone: '+08:00'
     });

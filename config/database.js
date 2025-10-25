@@ -1,10 +1,10 @@
 const mysql = require('mysql2/promise');
 
 const dbConfig = {
-  host: 'test-db-mysql.ns-z580ek8h.svc',
+  host: 'prod-db-mysql.ns-z580ek8h.svc',
   port: 3306,
   user: 'root',
-  password: 'zrjt6s5n',
+  password: 'ddqwh95j',
   database: 'social_platform',
   charset: 'utf8mb4',
   timezone: '+08:00',

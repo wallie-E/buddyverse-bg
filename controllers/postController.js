@@ -73,6 +73,7 @@ const getPosts = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const category_id = req.query.category_id;
     const subcategory_id = req.query.subcategory_id;
+    const location = req.query.location;
     const offset = (page - 1) * limit;
 
     // 构建查询条件
@@ -90,6 +91,11 @@ const getPosts = async (req, res) => {
     if (subcategory_id) {
       whereConditions.push('p.subcategory_id = ?');
       queryParams.push(subcategory_id);
+    }
+
+    if (location) {
+      whereConditions.push('p.location LIKE ?');
+      queryParams.push(`%${location}%`);
     }
 
     // 处理空WHERE子句的情况

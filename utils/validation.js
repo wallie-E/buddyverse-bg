@@ -47,6 +47,9 @@ const validateUpdateProfile = (data) => {
     }),
     signature: Joi.string().max(200).allow('').messages({
       'string.max': '签名长度不能超过200字符'
+    }),
+    wechat_id: Joi.string().max(100).allow('', null).messages({
+      'string.max': '微信号长度不能超过100字符'
     })
   });
   return schema.validate(data);

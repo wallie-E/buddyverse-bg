@@ -13,7 +13,7 @@ const updateProfile = async (req, res) => {
     }
 
     const userId = req.user.id;
-    const { nickname, gender, signature } = req.body;
+    const { nickname, gender, signature, wechat_id } = req.body;
 
     // 构建更新字段
     const updateFields = [];
@@ -31,6 +31,10 @@ const updateProfile = async (req, res) => {
       updateFields.push('signature = ?');
       updateValues.push(signature);
     }
+    if (wechat_id !== undefined) {
+      updateFields.push('wechat_id = ?');
+      updateValues.push(wechat_id);
+    }
 
     if (updateFields.length === 0) {
       return error(res, '没有要更新的字段', 400);
@@ -47,7 +51,7 @@ const updateProfile = async (req, res) => {
 
     // 查询更新后的用户信息
     const [users] = await pool.execute(
-      'SELECT id, email, nickname, gender, avatar, signature, role FROM users WHERE id = ?',
+      'SELECT id, email, nickname, gender, avatar, signature, wechat_id, role FROM users WHERE id = ?',
       [userId]
     );
 
@@ -73,7 +77,7 @@ const getUserProfile = async (req, res) => {
 
     // 查询用户基本信息（只返回公开信息）
     const [users] = await pool.execute(
-      'SELECT id, nickname, gender, avatar, signature, created_at FROM users WHERE id = ? AND status = "active"',
+      'SELECT id, nickname, gender, avatar, signature, wechat_id, created_at FROM users WHERE id = ? AND status = "active"',
       [user_id]
     );
 

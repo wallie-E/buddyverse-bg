@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
   gender ENUM('male', 'female', 'other') DEFAULT 'other',
   avatar VARCHAR(500) DEFAULT NULL,
   signature VARCHAR(200) DEFAULT NULL,
+  wechat_id VARCHAR(100) DEFAULT NULL,
   role ENUM('user', 'admin') DEFAULT 'user',
   status ENUM('active', 'inactive', 'banned') DEFAULT 'active',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

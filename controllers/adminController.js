@@ -46,7 +46,7 @@ const getUsers = async (req, res) => {
     // 查询用户列表（包含帖子数量）
     const [users] = await pool.execute(`
       SELECT 
-        u.id, u.email, u.nickname, u.gender, u.role, u.status, u.created_at,
+        u.id, u.email, u.nickname, u.gender, u.wechat_id, u.role, u.status, u.created_at,
         COALESCE(p.post_count, 0) as post_count
       FROM users u
       LEFT JOIN (
@@ -132,7 +132,7 @@ const getPosts = async (req, res) => {
     if (user_id) {
       // 查询用户基本信息
       const [users] = await pool.execute(
-        'SELECT id, email, nickname, gender, role, status, created_at FROM users WHERE id = ?',
+        'SELECT id, email, nickname, gender, wechat_id, role, status, created_at FROM users WHERE id = ?',
         [user_id]
       );
 

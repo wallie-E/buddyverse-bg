@@ -17,6 +17,7 @@ const commentRoutes = require('./routes/comments');
 const categoryRoutes = require('./routes/categories');
 const notificationRoutes = require('./routes/notifications');
 const adminRoutes = require('./routes/admin');
+const wechatExchangeRoutes = require('./routes/wechatExchange');
 
 const app = express();
 const port = process.env.PORT || 8080;
@@ -54,6 +55,7 @@ app.use('/api/comments', commentRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/wechat-exchange', wechatExchangeRoutes);
 
 // 健康检查
 app.get('/health', (req, res) => {

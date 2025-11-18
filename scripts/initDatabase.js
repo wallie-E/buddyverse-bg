@@ -41,6 +41,7 @@ const initDatabase = async () => {
     
     // 先删除所有表（按依赖关系顺序）
     await connection.execute('DROP TABLE IF EXISTS notifications');
+    await connection.execute('DROP TABLE IF EXISTS wechat_exchange');
     await connection.execute('DROP TABLE IF EXISTS comments');
     await connection.execute('DROP TABLE IF EXISTS posts');
     await connection.execute('DROP TABLE IF EXISTS post_subcategories');
@@ -58,6 +59,7 @@ const initDatabase = async () => {
         gender ENUM('male', 'female') DEFAULT 'male',
         avatar VARCHAR(500) DEFAULT NULL,
         signature VARCHAR(200) DEFAULT NULL,
+        wechat_id VARCHAR(100) DEFAULT NULL,
         role ENUM('user', 'admin') DEFAULT 'user',
         status ENUM('active', 'inactive', 'banned') DEFAULT 'active',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -155,11 +157,11 @@ const initDatabase = async () => {
       CREATE TABLE notifications (
         id INT PRIMARY KEY AUTO_INCREMENT,
         user_id INT NOT NULL,
-        type ENUM('comment', 'reply', 'system') NOT NULL,
+        type ENUM('comment', 'reply', 'system', 'wechat_exchange_request', 'wechat_exchange_confirmed') NOT NULL,
         title VARCHAR(100) NOT NULL,
         content VARCHAR(500) NOT NULL,
         related_id INT DEFAULT NULL,
-        related_type ENUM('post', 'comment') DEFAULT NULL,
+        related_type ENUM('post', 'comment', 'wechat_exchange') DEFAULT NULL,
         is_read BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -171,6 +173,33 @@ const initDatabase = async () => {
     `);
     console.log('通知表创建成功');
 
+    // 创建微信交换表
+    await connection.execute(`
+      CREATE TABLE wechat_exchange (
+        id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
+        exchange_no VARCHAR(64) NOT NULL UNIQUE COMMENT '交换流水号',
+        initiator_id INT NOT NULL COMMENT '发起人ID',
+        initiator_wechat VARCHAR(100) DEFAULT NULL COMMENT '发起人微信号',
+        receiver_id INT NOT NULL COMMENT '接收人ID',
+        receiver_wechat VARCHAR(100) DEFAULT NULL COMMENT '接收人微信号',
+        status TINYINT NOT NULL DEFAULT 0 COMMENT '交换状态：0-待确认，1-已完成，2-已拒绝，3-已过期',
+        initiator_confirmed_at TIMESTAMP NULL DEFAULT NULL COMMENT '发起人确认时间',
+        receiver_confirmed_at TIMESTAMP NULL DEFAULT NULL COMMENT '接收人确认时间',
+        completed_at TIMESTAMP NULL DEFAULT NULL COMMENT '完成时间',
+        expired_at TIMESTAMP NULL DEFAULT NULL COMMENT '过期时间',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+        FOREIGN KEY (initiator_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE,
+        INDEX idx_exchange_no (exchange_no),
+        INDEX idx_initiator_receiver (initiator_id, receiver_id),
+        INDEX idx_receiver_initiator (receiver_id, initiator_id),
+        INDEX idx_status (status),
+        INDEX idx_created_at (created_at)
+      )
+    `);
+    console.log('微信交换表创建成功');
+
     // 按照外键依赖顺序清空数据
     console.log('开始清空所有数据...');
     
@@ -179,27 +208,32 @@ const initDatabase = async () => {
     await connection.execute('ALTER TABLE notifications AUTO_INCREMENT = 1');
     console.log('清空通知数据');
     
-    // 2. 清空评论数据  
+    // 2. 清空微信交换数据
+    await connection.execute('DELETE FROM wechat_exchange');
+    await connection.execute('ALTER TABLE wechat_exchange AUTO_INCREMENT = 1');
+    console.log('清空微信交换数据');
+    
+    // 3. 清空评论数据  
     await connection.execute('DELETE FROM comments');
     await connection.execute('ALTER TABLE comments AUTO_INCREMENT = 1');
     console.log('清空评论数据');
     
-    // 3. 清空帖子数据
+    // 4. 清空帖子数据
     await connection.execute('DELETE FROM posts');
     await connection.execute('ALTER TABLE posts AUTO_INCREMENT = 1');
     console.log('清空帖子数据');
     
-    // 4. 清空用户数据
+    // 5. 清空用户数据
     await connection.execute('DELETE FROM users');
     await connection.execute('ALTER TABLE users AUTO_INCREMENT = 1');
     console.log('清空用户数据');
     
-    // 5. 清空细分类型数据
+    // 6. 清空细分类型数据
     await connection.execute('DELETE FROM post_subcategories');
     await connection.execute('ALTER TABLE post_subcategories AUTO_INCREMENT = 1');
     console.log('清空细分类型数据');
     
-    // 6. 清空主分类数据
+    // 7. 清空主分类数据
     await connection.execute('DELETE FROM post_categories');
     await connection.execute('ALTER TABLE post_categories AUTO_INCREMENT = 1');
     console.log('清空主分类数据');

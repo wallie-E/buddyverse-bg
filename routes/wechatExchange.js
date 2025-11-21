@@ -15,5 +15,8 @@ router.post('/confirm', authenticate, wechatExchangeController.confirmExchange);
 // 获取我的交换记录列表
 router.get('/my-exchanges', authenticate, wechatExchangeController.getMyExchanges);
 
+// 更新已完成交换的微信号
+router.post('/update-wechat', authenticate, wechatExchangeController.updateExchangeWechat);
+
 module.exports = router;
 

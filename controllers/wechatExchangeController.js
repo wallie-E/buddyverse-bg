@@ -478,10 +478,99 @@ const getMyExchanges = async (req, res) => {
   }
 };
 
+/**
+ * 更新已完成交换的微信号
+ * POST /api/wechat-exchange/update-wechat
+ */
+const updateExchangeWechat = async (req, res) => {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    const currentUserId = req.user.id;
+    const { targetUserId } = req.body;
+
+    // 验证参数
+    if (!targetUserId) {
+      await connection.rollback();
+      return error(res, '目标用户ID不能为空', 400);
+    }
+
+    // 1. 查询目标用户的最新微信号
+    const [users] = await connection.execute(
+      'SELECT wechat_id FROM users WHERE id = ?',
+      [targetUserId]
+    );
+
+    if (users.length === 0) {
+      await connection.rollback();
+      return error(res, '目标用户不存在', 404);
+    }
+
+    const targetWechatId = users[0].wechat_id;
+
+    if (!targetWechatId) {
+      await connection.rollback();
+      return error(res, '目标用户尚未设置微信号', 400);
+    }
+
+    // 2. 查询已完成的交换记录
+    const [exchanges] = await connection.execute(
+      `SELECT * FROM wechat_exchange 
+       WHERE ((initiator_id = ? AND receiver_id = ?) 
+          OR (initiator_id = ? AND receiver_id = ?))
+          AND status = 1
+       LIMIT 1`,
+      [currentUserId, targetUserId, targetUserId, currentUserId]
+    );
+
+    if (exchanges.length === 0) {
+      await connection.rollback();
+      return error(res, '未找到已完成的交换记录', 404);
+    }
+
+    const exchange = exchanges[0];
+    const isInitiator = exchange.initiator_id === currentUserId;
+
+    // 3. 更新交换记录中的微信号（更新对方的微信号）
+    // 如果我是发起方，对方就是接收方，我要更新 receiver_wechat
+    // 如果我是接收方，对方就是发起方，我要更新 initiator_wechat
+    if (isInitiator) {
+      await connection.execute(
+        `UPDATE wechat_exchange 
+         SET receiver_wechat = ?, updated_at = NOW()
+         WHERE id = ?`,
+        [targetWechatId, exchange.id]
+      );
+    } else {
+      await connection.execute(
+        `UPDATE wechat_exchange 
+         SET initiator_wechat = ?, updated_at = NOW()
+         WHERE id = ?`,
+        [targetWechatId, exchange.id]
+      );
+    }
+
+    await connection.commit();
+
+    return success(res, {
+      otherWechat: targetWechatId
+    }, '更新成功');
+
+  } catch (err) {
+    await connection.rollback();
+    console.error('更新交换微信号失败:', err);
+    return error(res, '更新失败', 500);
+  } finally {
+    connection.release();
+  }
+};
+
 module.exports = {
   getExchangeInfo,
   requestExchange,
   confirmExchange,
-  getMyExchanges
+  getMyExchanges,
+  updateExchangeWechat
 };
 

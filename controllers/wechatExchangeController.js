@@ -14,12 +14,12 @@ const generateExchangeNo = () => {
 /**
  * 创建通知
  */
-const createNotification = async (userId, type, title, content, relatedId, relatedUserId) => {
+const createNotification = async (userId, type, content, senderId, relatedId = null) => {
   try {
     await pool.execute(
-      `INSERT INTO notifications (user_id, type, title, content, related_id, related_type, is_read, created_at)
-       VALUES (?, ?, ?, ?, ?, 'wechat_exchange', FALSE, NOW())`,
-      [userId, type, title, content, relatedId]
+      `INSERT INTO notifications (user_id, sender_id, type, content, related_id, is_read, created_at)
+       VALUES (?, ?, ?, ?, ?, FALSE, NOW())`,
+      [userId, senderId, type, content, relatedId]
     );
   } catch (err) {
     console.error('创建通知失败:', err);
@@ -231,10 +231,9 @@ const requestExchange = async (req, res) => {
     await createNotification(
       targetUserId,
       'wechat_exchange_request',
-      '微信交换请求',
       `${req.user.nickname} 想要与您交换微信`,
-      null,
-      currentUserId
+      currentUserId,
+      null
     );
 
     await connection.commit();
@@ -328,10 +327,9 @@ const confirmExchange = async (req, res) => {
       await createNotification(
         exchange.initiator_id,
         'system',
-        '微信交换被拒绝',
         `对方拒绝了您的微信交换请求`,
-        null,
-        currentUserId
+        currentUserId,
+        null
       );
 
       responseData.notificationSent = true;
@@ -365,10 +363,9 @@ const confirmExchange = async (req, res) => {
       await createNotification(
         exchange.initiator_id,
         'wechat_exchange_confirmed',
-        '微信交换成功',
         `${req.user.nickname} 已确认与您交换微信`,
-        null,
-        currentUserId
+        currentUserId,
+        null
       );
 
       responseData.notificationSent = true;

@@ -52,8 +52,8 @@ const createComment = async (req, res) => {
       // 创建通知 - 只通知帖子作者
       if (post.user_id !== userId) {
         await connection.execute(
-          'INSERT INTO notifications (user_id, type, title, content, related_id, related_type) VALUES (?, ?, ?, ?, ?, ?)',
-          [post.user_id, 'comment', '帖子评论', `有人评论了您的帖子：${content}`, commentId, 'comment']
+          'INSERT INTO notifications (user_id, sender_id, type, content, post_id, related_id) VALUES (?, ?, ?, ?, ?, ?)',
+          [post.user_id, userId, 'comment', `${content}`, post_id, commentId]
         );
       }
 

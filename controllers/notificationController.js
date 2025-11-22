@@ -30,24 +30,20 @@ const getNotifications = async (req, res) => {
     );
     const total = countResult[0].total;
 
-    // 查询通知列表，通过LEFT JOIN获取对应的帖子ID
+    // 查询通知列表，直接关联发送者信息
     const [notifications] = await pool.execute(`
       SELECT 
         n.id, 
         n.type, 
-        n.title, 
         n.content, 
+        n.sender_id,
+        n.post_id,
         n.related_id, 
-        n.related_type, 
         n.is_read, 
         n.created_at,
-        CASE 
-          WHEN n.related_type = 'post' THEN n.related_id
-          WHEN n.related_type = 'comment' THEN c.post_id
-          ELSE NULL
-        END as post_id
+        u.nickname as sender_nickname
       FROM notifications n
-      LEFT JOIN comments c ON n.related_type = 'comment' AND n.related_id = c.id
+      LEFT JOIN users u ON n.sender_id = u.id
       WHERE ${whereClause}
       ORDER BY n.created_at DESC
       LIMIT ? OFFSET ?

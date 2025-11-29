@@ -80,6 +80,7 @@ const getExchangeInfo = async (req, res) => {
       initiatorId: exchange.initiator_id,
       receiverId: exchange.receiver_id,
       myRole: isInitiator ? 'initiator' : 'receiver',
+      subcategoryName: exchange.subcategory_name,
       createdAt: exchange.created_at,
       updatedAt: exchange.updated_at,
     };
@@ -134,7 +135,7 @@ const requestExchange = async (req, res) => {
     await connection.beginTransaction();
 
     const currentUserId = req.user.id;
-    const { targetUserId, wechatId, isUpdate } = req.body;
+    const { targetUserId, wechatId, isUpdate, subcategoryName } = req.body;
 
     // 验证参数
     if (!targetUserId) {
@@ -195,19 +196,20 @@ const requestExchange = async (req, res) => {
         await connection.execute(
           `UPDATE wechat_exchange 
            SET initiator_wechat = ?, 
+               subcategory_name = ?,
                initiator_confirmed_at = NOW(),
                updated_at = NOW()
            WHERE exchange_no = ?`,
-          [wechatId, exchangeNo]
+          [wechatId, subcategoryName || null, exchangeNo]
         );
       } else if (!isOriginalInitiator) {
         // 对方重新发起，创建新记录
         exchangeNo = generateExchangeNo();
         await connection.execute(
           `INSERT INTO wechat_exchange 
-           (exchange_no, initiator_id, initiator_wechat, receiver_id, status, initiator_confirmed_at, created_at)
-           VALUES (?, ?, ?, ?, 0, NOW(), NOW())`,
-          [exchangeNo, currentUserId, wechatId, targetUserId]
+           (exchange_no, initiator_id, initiator_wechat, receiver_id, subcategory_name, status, initiator_confirmed_at, created_at)
+           VALUES (?, ?, ?, ?, ?, 0, NOW(), NOW())`,
+          [exchangeNo, currentUserId, wechatId, targetUserId, subcategoryName || null]
         );
         isNewRecord = true;
       } else {
@@ -220,9 +222,9 @@ const requestExchange = async (req, res) => {
       exchangeNo = generateExchangeNo();
       await connection.execute(
         `INSERT INTO wechat_exchange 
-         (exchange_no, initiator_id, initiator_wechat, receiver_id, status, initiator_confirmed_at, created_at)
-         VALUES (?, ?, ?, ?, 0, NOW(), NOW())`,
-        [exchangeNo, currentUserId, wechatId, targetUserId]
+         (exchange_no, initiator_id, initiator_wechat, receiver_id, subcategory_name, status, initiator_confirmed_at, created_at)
+         VALUES (?, ?, ?, ?, ?, 0, NOW(), NOW())`,
+        [exchangeNo, currentUserId, wechatId, targetUserId, subcategoryName || null]
       );
       isNewRecord = true;
     }
@@ -454,6 +456,7 @@ const getMyExchanges = async (req, res) => {
         otherAvatar: exchange.other_avatar,
         myWechat: isInitiator ? exchange.initiator_wechat : exchange.receiver_wechat,
         otherWechat: exchange.status === 1 ? (isInitiator ? exchange.receiver_wechat : exchange.initiator_wechat) : null,
+        subcategoryName: exchange.subcategory_name,
         createdAt: exchange.created_at,
         completedAt: exchange.completed_at,
       };

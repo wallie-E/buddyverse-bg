@@ -30,15 +30,27 @@ const createComment = async (req, res) => {
     // 对于私有帖子，所有人都可以添加评论，但只有帖子作者能看到
     // 因此这里不需要检查评论权限
 
+    // 查询用户信息（用于冗余存储）
+    const [users] = await pool.execute(
+      'SELECT nickname, gender FROM users WHERE id = ?',
+      [userId]
+    );
+
+    if (users.length === 0) {
+      return error(res, '用户不存在', 404);
+    }
+
+    const user = users[0];
+
     // 开启事务
     const connection = await pool.getConnection();
     await connection.beginTransaction();
 
     try {
-      // 创建评论
+      // 创建评论（包含冗余的用户信息）
       const [result] = await connection.execute(
-        'INSERT INTO comments (post_id, user_id, content) VALUES (?, ?, ?)',
-        [post_id, userId, content]
+        'INSERT INTO comments (post_id, user_id, author_nickname, author_gender, content) VALUES (?, ?, ?, ?, ?)',
+        [post_id, userId, user.nickname, user.gender, content]
       );
 
       const commentId = result.insertId;
@@ -63,9 +75,9 @@ const createComment = async (req, res) => {
       const [comments] = await pool.execute(`
         SELECT 
           c.id, c.content, c.created_at,
-          u.nickname as author_name
+          c.author_nickname as author_name,
+          c.author_gender as author_gender
         FROM comments c
-        LEFT JOIN users u ON c.user_id = u.id
         WHERE c.id = ?
       `, [commentId]);
 
@@ -117,13 +129,13 @@ const getPostComments = async (req, res) => {
     );
     const total = countResult[0].total;
 
-    // 查询评论列表
+    // 查询评论列表（使用冗余存储的用户信息）
     const [comments] = await pool.execute(`
       SELECT 
         c.id, c.user_id, c.content, c.created_at,
-        u.nickname as author_name
+        c.author_nickname as author_name,
+        c.author_gender as author_gender
       FROM comments c
-      LEFT JOIN users u ON c.user_id = u.id
       WHERE c.post_id = ? AND c.status = "active"
       ORDER BY c.created_at DESC
       LIMIT ? OFFSET ?

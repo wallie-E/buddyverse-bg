@@ -15,6 +15,31 @@ const updateProfile = async (req, res) => {
     const userId = req.user.id;
     const { nickname, gender, signature, wechat_id } = req.body;
 
+    // 检查用户最近一次修改个人资料的时间（每周只能修改一次）
+    const [userInfo] = await pool.execute(
+      'SELECT updated_at, created_at FROM users WHERE id = ?',
+      [userId]
+    );
+
+    if (userInfo.length === 0) {
+      return error(res, '用户不存在', 404);
+    }
+
+    const user = userInfo[0];
+    const now = new Date();
+    const lastUpdated = new Date(user.updated_at);
+    const createdAt = new Date(user.created_at);
+    
+    // 如果 updated_at 和 created_at 相同，说明用户从未修改过资料（注册时不算修改）
+    // 否则检查距离上次修改是否不足 7 天
+    if (lastUpdated.getTime() !== createdAt.getTime()) {
+      const daysSinceLastUpdate = Math.floor((now - lastUpdated) / (1000 * 60 * 60 * 24));
+      if (daysSinceLastUpdate < 7) {
+        const remainingDays = 7 - daysSinceLastUpdate;
+        return error(res, `每周只能修改一次个人资料，请 ${remainingDays} 天后再试`, 403);
+      }
+    }
+
     // 构建更新字段
     const updateFields = [];
     const updateValues = [];

@@ -35,10 +35,32 @@ const createPost = async (req, res) => {
       return error(res, '细分类型不存在或不属于该分类', 400);
     }
 
-    // 创建帖子
+    // 检查用户今天是否已经发布过帖子
+    const [todayPosts] = await pool.execute(
+      'SELECT id FROM posts WHERE user_id = ? AND status = "active" AND DATE(created_at) = CURDATE()',
+      [userId]
+    );
+
+    if (todayPosts.length > 0) {
+      return error(res, '每天只能发布一条帖子，请明天再试', 403);
+    }
+
+    // 查询用户信息（用于冗余存储）
+    const [users] = await pool.execute(
+      'SELECT nickname, gender FROM users WHERE id = ?',
+      [userId]
+    );
+
+    if (users.length === 0) {
+      return error(res, '用户不存在', 404);
+    }
+
+    const user = users[0];
+
+    // 创建帖子（包含冗余的用户信息）
     const [result] = await pool.execute(
-      'INSERT INTO posts (user_id, content, location, category_id, subcategory_id, comment_visibility) VALUES (?, ?, ?, ?, ?, ?)',
-      [userId, content, location || null, category_id, subcategory_id, comment_visibility || 'public']
+      'INSERT INTO posts (user_id, author_nickname, author_gender, content, location, category_id, subcategory_id, comment_visibility) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [userId, user.nickname, user.gender, content, location || null, category_id, subcategory_id, comment_visibility || 'public']
     );
 
     const postId = result.insertId;
@@ -47,11 +69,11 @@ const createPost = async (req, res) => {
     const [posts] = await pool.execute(`
       SELECT 
         p.id, p.content, p.location, p.comment_visibility, p.comment_count, p.created_at,
-        u.nickname as author_name,
+        p.author_nickname as author_name,
+        p.author_gender as author_gender,
         pc.name as category_name,
         ps.name as subcategory_name
       FROM posts p
-      LEFT JOIN users u ON p.user_id = u.id
       LEFT JOIN post_categories pc ON p.category_id = pc.id
       LEFT JOIN post_subcategories ps ON p.subcategory_id = ps.id
       WHERE p.id = ?
@@ -110,15 +132,15 @@ const getPosts = async (req, res) => {
     const total = countResult[0].total;
    
 
-    // 查询帖子列表（关键修改：参数处理）
+    // 查询帖子列表（使用冗余存储的用户信息）
     const sqlQuery = `
       SELECT 
         p.id, p.user_id, p.content, p.location, p.comment_count, p.comment_visibility, p.created_at,
-        u.nickname as author_name,
+        p.author_nickname as author_name,
+        p.author_gender as author_gender,
         pc.name as category_name,
         ps.name as subcategory_name
       FROM posts p
-      LEFT JOIN users u ON p.user_id = u.id
       LEFT JOIN post_categories pc ON p.category_id = pc.id
       LEFT JOIN post_subcategories ps ON p.subcategory_id = ps.id
       ${whereClause}
@@ -151,11 +173,11 @@ const getPostDetail = async (req, res) => {
       SELECT 
         p.id, p.content, p.location, p.comment_visibility, p.comment_count, p.created_at,
         p.user_id,
-        u.nickname as author_name,
+        p.author_nickname as author_name,
+        p.author_gender as author_gender,
         pc.name as category_name,
         ps.name as subcategory_name
       FROM posts p
-      LEFT JOIN users u ON p.user_id = u.id
       LEFT JOIN post_categories pc ON p.category_id = pc.id
       LEFT JOIN post_subcategories ps ON p.subcategory_id = ps.id
       WHERE p.id = ? AND p.status = "active"

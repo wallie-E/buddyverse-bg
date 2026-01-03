@@ -96,6 +96,7 @@ const getPosts = async (req, res) => {
     const category_id = req.query.category_id;
     const subcategory_id = req.query.subcategory_id;
     const location = req.query.location;
+    const gender = req.query.gender;
     const offset = (page - 1) * limit;
 
     // 构建查询条件
@@ -118,6 +119,17 @@ const getPosts = async (req, res) => {
     if (location) {
       whereConditions.push('p.location LIKE ?');
       queryParams.push(`%${location}%`);
+    }
+
+     // 性别筛选
+     if (gender) {
+      // 验证性别参数是否有效
+      if (['male', 'female', 'other'].includes(gender)) {
+        whereConditions.push('p.author_gender = ?');
+        queryParams.push(gender);
+      } else {
+        return error(res, '性别参数无效，只能是 male、female 或 other', 400);
+      }
     }
 
     // 处理空WHERE子句的情况

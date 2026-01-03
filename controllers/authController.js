@@ -14,7 +14,7 @@ const register = async (req, res) => {
       return error(res, validationError.details[0].message, 400);
     }
 
-    const { email, password, nickname } = req.body;
+    const { email, password, nickname, gender } = req.body;
 
     // 检查邮箱是否已存在
     const [existingUsers] = await pool.execute(
@@ -31,8 +31,8 @@ const register = async (req, res) => {
 
     // 创建用户
     const [result] = await pool.execute(
-      'INSERT INTO users (email, password, nickname) VALUES (?, ?, ?)',
-      [email, hashedPassword, nickname]
+      'INSERT INTO users (email, password, nickname, gender) VALUES (?, ?, ?, ?)',
+      [email, hashedPassword, nickname, gender]
     );
 
     const userId = result.insertId;
@@ -45,7 +45,7 @@ const register = async (req, res) => {
       id: userId,
       email,
       nickname,
-      gender: 'other',
+      gender,
       avatar: null,
       signature: null,
       wechat_id: null,

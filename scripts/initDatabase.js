@@ -111,6 +111,8 @@ const initDatabase = async () => {
       CREATE TABLE posts (
         id INT PRIMARY KEY AUTO_INCREMENT,
         user_id INT NOT NULL,
+        author_nickname VARCHAR(100) DEFAULT NULL,
+        author_gender ENUM('male', 'female') DEFAULT NULL,
         content TEXT NOT NULL,
         location VARCHAR(200),
         category_id INT NOT NULL,

@@ -16,6 +16,10 @@ const validateRegister = (data) => {
       'string.min': '昵称长度至少2位',
       'string.max': '昵称长度不能超过20位',
       'any.required': '昵称不能为空'
+    }),
+    gender: Joi.string().valid('male', 'female').required().messages({
+      'any.only': '性别只能是male或female',
+      'any.required': '性别不能为空'
     })
   });
   return schema.validate(data);

@@ -6,6 +6,9 @@ const { authenticate } = require('../middleware/auth');
 // 获取交换信息
 router.get('/info', authenticate, wechatExchangeController.getExchangeInfo);
 
+// 根据用户ID查看微信号（POST，body: { targetUserId }）
+router.post('/view', authenticate, wechatExchangeController.viewExchange);
+
 // 发起/更新交换请求
 router.post('/request', authenticate, wechatExchangeController.requestExchange);
 

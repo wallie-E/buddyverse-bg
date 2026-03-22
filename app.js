@@ -22,6 +22,9 @@ const wechatExchangeRoutes = require('./routes/wechatExchange');
 const app = express();
 const port = process.env.PORT || 8080;
 
+// 信任反向代理（nginx等），确保 req.ip 获取到真实客户端IP
+app.set('trust proxy', 1);
+
 // 基础中间件
 app.use(helmet()); // 安全头
 
@@ -30,7 +33,7 @@ app.use(cors({
   origin: true, // 允许所有来源
   credentials: true, // 允许携带凭证
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Device-ID']
 }));
 
 app.use(express.json({ limit: '10mb' })); // JSON解析

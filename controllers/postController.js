@@ -13,7 +13,7 @@ const createPost = async (req, res) => {
     }
 
     const userId = req.user.id;
-    const { content, location, category_id, subcategory_id, comment_visibility } = req.body;
+    const { content, location, category_id, subcategory_id } = req.body;
 
     // 验证分类是否存在
     const [categories] = await pool.execute(
@@ -59,8 +59,8 @@ const createPost = async (req, res) => {
 
     // 创建帖子（包含冗余的用户信息）
     const [result] = await pool.execute(
-      'INSERT INTO posts (user_id, author_nickname, author_gender, content, location, category_id, subcategory_id, comment_visibility) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [userId, user.nickname, user.gender, content, location || null, category_id, subcategory_id, comment_visibility || 'public']
+      'INSERT INTO posts (user_id, author_nickname, author_gender, content, location, category_id, subcategory_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [userId, user.nickname, user.gender, content, location || null, category_id, subcategory_id]
     );
 
     const postId = result.insertId;
@@ -68,7 +68,7 @@ const createPost = async (req, res) => {
     // 查询创建的帖子详情
     const [posts] = await pool.execute(`
       SELECT 
-        p.id, p.content, p.location, p.comment_visibility, p.comment_count, p.created_at,
+        p.id, p.content, p.location, p.created_at,
         p.author_nickname as author_name,
         p.author_gender as author_gender,
         pc.name as category_name,
@@ -147,7 +147,7 @@ const getPosts = async (req, res) => {
     // 查询帖子列表（使用冗余存储的用户信息）
     const sqlQuery = `
       SELECT 
-        p.id, p.user_id, p.content, p.location, p.comment_count, p.comment_visibility, p.created_at,
+        p.id, p.user_id, p.content, p.location, p.created_at,
         p.author_nickname as author_name,
         p.author_gender as author_gender,
         pc.name as category_name,
@@ -170,38 +170,6 @@ const getPosts = async (req, res) => {
     return paginate(res, posts, total, page, limit);
   } catch (err) {
     console.error('获取帖子列表失败:', err);
-    return error(res, '获取失败', 500);
-  }
-};
-
-/**
- * 获取帖子详情
- */
-const getPostDetail = async (req, res) => {
-  try {
-    const postId = req.params.id;
-
-    const [posts] = await pool.execute(`
-      SELECT 
-        p.id, p.content, p.location, p.comment_visibility, p.comment_count, p.created_at,
-        p.user_id,
-        p.author_nickname as author_name,
-        p.author_gender as author_gender,
-        pc.name as category_name,
-        ps.name as subcategory_name
-      FROM posts p
-      LEFT JOIN post_categories pc ON p.category_id = pc.id
-      LEFT JOIN post_subcategories ps ON p.subcategory_id = ps.id
-      WHERE p.id = ? AND p.status = "active"
-    `, [postId]);
-
-    if (posts.length === 0) {
-      return error(res, '帖子不存在', 404);
-    }
-
-    return success(res, posts[0], '获取成功');
-  } catch (err) {
-    console.error('获取帖子详情失败:', err);
     return error(res, '获取失败', 500);
   }
 };
@@ -248,6 +216,5 @@ const deletePost = async (req, res) => {
 module.exports = {
   createPost,
   getPosts,
-  getPostDetail,
   deletePost
 }; 

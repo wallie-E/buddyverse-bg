@@ -58,8 +58,6 @@ CREATE TABLE IF NOT EXISTS posts (
   location VARCHAR(200),
   category_id INT NOT NULL,
   subcategory_id INT NOT NULL,
-  comment_visibility ENUM('public', 'private') DEFAULT 'public',
-  comment_count INT DEFAULT 0,
   status ENUM('active', 'deleted') DEFAULT 'active',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -73,32 +71,14 @@ CREATE TABLE IF NOT EXISTS posts (
   INDEX idx_created (created_at)
 );
 
--- 评论表
-CREATE TABLE IF NOT EXISTS comments (
-  id INT PRIMARY KEY AUTO_INCREMENT,
-  post_id INT NOT NULL,
-  user_id INT NOT NULL,
-  content TEXT NOT NULL,
-  status ENUM('active', 'deleted') DEFAULT 'active',
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-  INDEX idx_post (post_id),
-  INDEX idx_user (user_id),
-  INDEX idx_status (status),
-  INDEX idx_created (created_at)
-);
-
 -- 通知表
 CREATE TABLE IF NOT EXISTS notifications (
   id INT PRIMARY KEY AUTO_INCREMENT,
   user_id INT NOT NULL,
-  type ENUM('comment', 'reply', 'system') NOT NULL,
+  type ENUM('system') NOT NULL,
   title VARCHAR(100) NOT NULL,
   content VARCHAR(500) NOT NULL,
   related_id INT DEFAULT NULL,
-  related_type ENUM('post', 'comment') DEFAULT NULL,
   is_read BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,

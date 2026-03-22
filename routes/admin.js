@@ -18,8 +18,4 @@ router.put('/users/:id/status', adminController.toggleUserStatus);
 router.get('/posts', adminController.getPosts);
 router.delete('/posts/:id', adminController.deletePost);
 
-// 评论管理
-router.get('/comments', adminController.getComments);
-router.delete('/comments/:id', adminController.deleteComment);
-
 module.exports = router; 

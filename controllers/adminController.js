@@ -172,61 +172,6 @@ const getPosts = async (req, res) => {
 };
 
 /**
- * 获取所有评论列表
- */
-const getComments = async (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
-    const status = req.query.status; // active, deleted
-    const post_id = req.query.post_id;
-    const offset = (page - 1) * limit;
-
-    // 构建查询条件
-    let whereConditions = [];
-    let queryParams = [];
-
-    if (status) {
-      whereConditions.push('c.status = ?');
-      queryParams.push(status);
-    }
-
-    if (post_id) {
-      whereConditions.push('c.post_id = ?');
-      queryParams.push(post_id);
-    }
-
-    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
-
-    // 查询评论总数
-    const [countResult] = await pool.execute(
-      `SELECT COUNT(*) as total FROM comments c ${whereClause}`,
-      queryParams
-    );
-    const total = countResult[0].total;
-
-    // 查询评论列表
-    const [comments] = await pool.execute(`
-      SELECT 
-        c.id, c.content, c.status, c.created_at,
-        u.nickname as author_name, u.email as author_email,
-        p.id as post_id, p.content as post_content
-      FROM comments c
-      LEFT JOIN users u ON c.user_id = u.id
-      LEFT JOIN posts p ON c.post_id = p.id
-      ${whereClause}
-      ORDER BY c.created_at DESC
-      LIMIT ? OFFSET ?
-    `, [...queryParams, `${limit}`, `${offset}`]);
-
-    return paginate(res, comments, total, page, limit);
-  } catch (err) {
-    console.error('获取评论列表失败:', err);
-    return error(res, '获取失败', 500);
-  }
-};
-
-/**
  * 删除用户
  */
 const deleteUser = async (req, res) => {
@@ -342,12 +287,6 @@ const deletePost = async (req, res) => {
     await connection.beginTransaction();
 
     try {
-      // 软删除帖子的所有评论
-      await connection.execute(
-        'UPDATE comments SET status = "deleted" WHERE post_id = ?',
-        [postId]
-      );
-
       // 软删除帖子
       await connection.execute(
         'UPDATE posts SET status = "deleted" WHERE id = ?',
@@ -365,62 +304,6 @@ const deletePost = async (req, res) => {
     }
   } catch (err) {
     console.error('删除帖子失败:', err);
-    return error(res, '删除失败', 500);
-  }
-};
-
-/**
- * 删除评论
- */
-const deleteComment = async (req, res) => {
-  try {
-    const commentId = req.params.id;
-
-    // 检查评论是否存在
-    const [comments] = await pool.execute(
-      'SELECT id, post_id FROM comments WHERE id = ?',
-      [commentId]
-    );
-
-    if (comments.length === 0) {
-      return error(res, '评论不存在', 404);
-    }
-
-    const comment = comments[0];
-
-    // 开启事务
-    const connection = await pool.getConnection();
-    await connection.beginTransaction();
-
-    try {
-      // 软删除评论
-      await connection.execute(
-        'UPDATE comments SET status = "deleted" WHERE id = ?',
-        [commentId]
-      );
-
-      // 更新帖子评论数
-      const [deletedCount] = await connection.execute(
-        'SELECT COUNT(*) as count FROM comments WHERE id = ? AND status = "deleted"',
-        [commentId]
-      );
-
-      await connection.execute(
-        'UPDATE posts SET comment_count = comment_count - ? WHERE id = ?',
-        [deletedCount[0].count, comment.post_id]
-      );
-
-      await connection.commit();
-
-      return success(res, null, '删除成功');
-    } catch (err) {
-      await connection.rollback();
-      throw err;
-    } finally {
-      connection.release();
-    }
-  } catch (err) {
-    console.error('删除评论失败:', err);
     return error(res, '删除失败', 500);
   }
 };
@@ -448,19 +331,9 @@ const getStats = async (req, res) => {
       FROM posts
     `);
 
-    // 获取评论统计
-    const [commentStats] = await pool.execute(`
-      SELECT 
-        COUNT(*) as total_comments,
-        SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active_comments,
-        SUM(CASE WHEN DATE(created_at) = CURDATE() THEN 1 ELSE 0 END) as today_comments
-      FROM comments
-    `);
-
     const stats = {
       users: userStats[0],
-      posts: postStats[0],
-      comments: commentStats[0]
+      posts: postStats[0]
     };
 
     return success(res, stats, '获取统计数据成功');
@@ -473,10 +346,8 @@ const getStats = async (req, res) => {
 module.exports = {
   getUsers,
   getPosts,
-  getComments,
   deleteUser,
   toggleUserStatus,
   deletePost,
-  deleteComment,
   getStats
 }; 

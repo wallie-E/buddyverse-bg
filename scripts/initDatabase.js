@@ -47,7 +47,7 @@ const initDatabase = async () => {
     await connection.execute('DROP TABLE IF EXISTS post_subcategories');
     await connection.execute('DROP TABLE IF EXISTS post_categories');
     await connection.execute('DROP TABLE IF EXISTS users');
-    console.log('删除所有现有表');
+    console.log('删除所有现有表（含旧版 comments / wechat_exchange）');
     
     // 创建用户表
     await connection.execute(`
@@ -117,8 +117,6 @@ const initDatabase = async () => {
         location VARCHAR(200),
         category_id INT NOT NULL,
         subcategory_id INT NOT NULL,
-        comment_visibility ENUM('public', 'private') DEFAULT 'public',
-        comment_count INT DEFAULT 0,
         status ENUM('active', 'deleted') DEFAULT 'active',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -134,44 +132,21 @@ const initDatabase = async () => {
     `);
     console.log('帖子表创建成功');
 
-    // 创建评论表
-    await connection.execute(`
-      CREATE TABLE comments (
-        id INT PRIMARY KEY AUTO_INCREMENT,
-        post_id INT NOT NULL,
-        user_id INT NOT NULL,
-        content TEXT NOT NULL,
-        status ENUM('active', 'deleted') DEFAULT 'active',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-        INDEX idx_post (post_id),
-        INDEX idx_user (user_id),
-        INDEX idx_status (status),
-        INDEX idx_created (created_at)
-      )
-    `);
-    console.log('评论表创建成功');
-
     // 创建通知表
     await connection.execute(`
       CREATE TABLE notifications (
         id INT PRIMARY KEY AUTO_INCREMENT,
         user_id INT NOT NULL,
         sender_id INT DEFAULT NULL,
-        type ENUM('comment', 'reply', 'system', 'wechat_exchange_request', 'wechat_exchange_confirmed') NOT NULL,
+        type ENUM('system') NOT NULL,
         content VARCHAR(500) NOT NULL,
-        post_id INT DEFAULT NULL,
         related_id INT DEFAULT NULL,
         is_read BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
         FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE SET NULL,
-        FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
         INDEX idx_user (user_id),
         INDEX idx_sender (sender_id),
-        INDEX idx_post (post_id),
         INDEX idx_type (type),
         INDEX idx_read (is_read),
         INDEX idx_created (created_at)
@@ -179,70 +154,7 @@ const initDatabase = async () => {
     `);
     console.log('通知表创建成功');
 
-    // 创建微信交换表
-    await connection.execute(`
-      CREATE TABLE wechat_exchange (
-        id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
-        exchange_no VARCHAR(64) NOT NULL UNIQUE COMMENT '交换流水号',
-        initiator_id INT NOT NULL COMMENT '发起人ID',
-        initiator_wechat VARCHAR(100) DEFAULT NULL COMMENT '发起人微信号',
-        receiver_id INT NOT NULL COMMENT '接收人ID',
-        receiver_wechat VARCHAR(100) DEFAULT NULL COMMENT '接收人微信号',
-        status TINYINT NOT NULL DEFAULT 0 COMMENT '交换状态：0-待确认，1-已完成，2-已拒绝，3-已过期',
-        initiator_confirmed_at TIMESTAMP NULL DEFAULT NULL COMMENT '发起人确认时间',
-        receiver_confirmed_at TIMESTAMP NULL DEFAULT NULL COMMENT '接收人确认时间',
-        completed_at TIMESTAMP NULL DEFAULT NULL COMMENT '完成时间',
-        expired_at TIMESTAMP NULL DEFAULT NULL COMMENT '过期时间',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-        FOREIGN KEY (initiator_id) REFERENCES users(id) ON DELETE CASCADE,
-        FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE,
-        INDEX idx_exchange_no (exchange_no),
-        INDEX idx_initiator_receiver (initiator_id, receiver_id),
-        INDEX idx_receiver_initiator (receiver_id, initiator_id),
-        INDEX idx_status (status),
-        INDEX idx_created_at (created_at)
-      )
-    `);
-    console.log('微信交换表创建成功');
-
-    // 按照外键依赖顺序清空数据
-    console.log('开始清空所有数据...');
-    
-    // 1. 先清空通知数据
-    await connection.execute('DELETE FROM notifications');
-    await connection.execute('ALTER TABLE notifications AUTO_INCREMENT = 1');
-    console.log('清空通知数据');
-    
-    // 2. 清空微信交换数据
-    await connection.execute('DELETE FROM wechat_exchange');
-    await connection.execute('ALTER TABLE wechat_exchange AUTO_INCREMENT = 1');
-    console.log('清空微信交换数据');
-    
-    // 3. 清空评论数据  
-    await connection.execute('DELETE FROM comments');
-    await connection.execute('ALTER TABLE comments AUTO_INCREMENT = 1');
-    console.log('清空评论数据');
-    
-    // 4. 清空帖子数据
-    await connection.execute('DELETE FROM posts');
-    await connection.execute('ALTER TABLE posts AUTO_INCREMENT = 1');
-    console.log('清空帖子数据');
-    
-    // 5. 清空用户数据
-    await connection.execute('DELETE FROM users');
-    await connection.execute('ALTER TABLE users AUTO_INCREMENT = 1');
-    console.log('清空用户数据');
-    
-    // 6. 清空细分类型数据
-    await connection.execute('DELETE FROM post_subcategories');
-    await connection.execute('ALTER TABLE post_subcategories AUTO_INCREMENT = 1');
-    console.log('清空细分类型数据');
-    
-    // 7. 清空主分类数据
-    await connection.execute('DELETE FROM post_categories');
-    await connection.execute('ALTER TABLE post_categories AUTO_INCREMENT = 1');
-    console.log('清空主分类数据');
+    // 表已在上方 DROP + CREATE 重建，无需额外清空
 
     // 重新插入默认分类数据
     await connection.execute(`
@@ -286,18 +198,6 @@ const initDatabase = async () => {
       (2, '这是我的第一篇帖子，寻找火锅搭子！', '北京市朝阳区', 1, 1, '2025-08-02 08:24:20')
     `);
     console.log('测试帖子创建成功');
-
-    // 创建测试评论
-    await connection.execute(`
-      INSERT INTO comments (post_id, user_id, content, created_at) VALUES
-      (1, 1, '我也想去吃火锅！', '2025-08-02 08:30:00')
-    `);
-    
-    // 更新帖子的评论数量
-    await connection.execute(`
-      UPDATE posts SET comment_count = 1 WHERE id = 1
-    `);
-    console.log('测试评论创建成功');
 
     console.log('数据库初始化完成！');
     

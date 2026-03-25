@@ -115,7 +115,7 @@ const getPosts = async (req, res) => {
     // 查询帖子列表
     const [posts] = await pool.execute(`
       SELECT 
-        p.id, p.content, p.location, p.comment_count, p.comment_visibility, p.status, p.created_at,
+        p.id, p.content, p.location, p.status, p.created_at,
         u.nickname as author_name, u.email as author_email,
         pc.name as category_name,
         ps.name as subcategory_name

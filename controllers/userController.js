@@ -122,7 +122,7 @@ const getUserProfile = async (req, res) => {
     // 查询用户发布的帖子列表
     const [posts] = await pool.execute(`
       SELECT 
-        p.id, p.content, p.location, p.comment_count, p.comment_visibility, p.created_at,
+        p.id, p.content, p.location, p.created_at,
         pc.name as category_name,
         ps.name as subcategory_name
       FROM posts p
@@ -174,7 +174,7 @@ const getUserPosts = async (req, res) => {
     // 查询帖子列表
     const [posts] = await pool.execute(`
       SELECT 
-        p.id, p.content, p.location, p.comment_count, p.comment_visibility, p.created_at,
+        p.id, p.content, p.location, p.created_at,
         pc.name as category_name,
         ps.name as subcategory_name
       FROM posts p

@@ -49,6 +49,7 @@ const register = async (req, res) => {
       avatar: null,
       signature: null,
       wechat_id: null,
+      qq_id: null,
       role: 'user'
     };
 
@@ -73,7 +74,7 @@ const login = async (req, res) => {
 
     // 查询用户
     const [users] = await pool.execute(
-      'SELECT id, email, password, nickname, gender, avatar, signature, wechat_id, role, status FROM users WHERE email = ?',
+      'SELECT id, email, password, nickname, gender, avatar, signature, wechat_id, qq_id, role, status FROM users WHERE email = ?',
       [email]
     );
 
@@ -106,6 +107,7 @@ const login = async (req, res) => {
       avatar: user.avatar,
       signature: user.signature,
       wechat_id: user.wechat_id,
+      qq_id: user.qq_id,
       role: user.role
     };
 
@@ -124,7 +126,7 @@ const getProfile = async (req, res) => {
     const userId = req.user.id;
 
     const [users] = await pool.execute(
-      'SELECT id, email, nickname, gender, avatar, signature, wechat_id, role, created_at FROM users WHERE id = ?',
+      'SELECT id, email, nickname, gender, avatar, signature, wechat_id, qq_id, role, created_at FROM users WHERE id = ?',
       [userId]
     );
 

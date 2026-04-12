@@ -5,7 +5,7 @@ const { authenticate } = require('../middleware/auth');
 const { ipRegisterLimiter, deviceRegisterLimiter } = require('../middleware/registerRateLimit');
 
 // 用户注册
-router.post('/register', ipRegisterLimiter, deviceRegisterLimiter, authController.register);
+router.post('/register', authController.register);
 
 // 用户登录
 router.post('/login', authController.login);

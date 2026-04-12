@@ -54,6 +54,10 @@ const validateUpdateProfile = (data) => {
     }),
     wechat_id: Joi.string().max(100).allow('', null).messages({
       'string.max': '微信号长度不能超过100字符'
+    }),
+    qq_id: Joi.string().pattern(/^\d+$/).max(15).allow('', null).messages({
+      'string.pattern.base': 'QQ号只能包含数字',
+      'string.max': 'QQ号长度不能超过15位'
     })
   });
   return schema.validate(data);

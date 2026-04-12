@@ -13,7 +13,7 @@ const updateProfile = async (req, res) => {
     }
 
     const userId = req.user.id;
-    const { nickname, gender, signature, wechat_id } = req.body;
+    const { nickname, gender, signature, wechat_id, qq_id } = req.body;
 
     // 检查用户最近一次修改个人资料的时间（每周只能修改一次）
     const [userInfo] = await pool.execute(
@@ -60,6 +60,10 @@ const updateProfile = async (req, res) => {
       updateFields.push('wechat_id = ?');
       updateValues.push(wechat_id);
     }
+    if (qq_id !== undefined) {
+      updateFields.push('qq_id = ?');
+      updateValues.push(qq_id);
+    }
 
     if (updateFields.length === 0) {
       return error(res, '没有要更新的字段', 400);
@@ -76,7 +80,7 @@ const updateProfile = async (req, res) => {
 
     // 查询更新后的用户信息
     const [users] = await pool.execute(
-      'SELECT id, email, nickname, gender, avatar, signature, wechat_id, role FROM users WHERE id = ?',
+      'SELECT id, email, nickname, gender, avatar, signature, wechat_id, qq_id, role FROM users WHERE id = ?',
       [userId]
     );
 
@@ -102,7 +106,7 @@ const getUserProfile = async (req, res) => {
 
     // 查询用户基本信息（只返回公开信息）
     const [users] = await pool.execute(
-      'SELECT id, nickname, gender, avatar, signature, wechat_id, created_at FROM users WHERE id = ? AND status = "active"',
+      'SELECT id, nickname, gender, avatar, signature, wechat_id, qq_id, created_at FROM users WHERE id = ? AND status = "active"',
       [user_id]
     );
 

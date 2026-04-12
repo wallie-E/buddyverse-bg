@@ -60,6 +60,7 @@ const initDatabase = async () => {
         avatar VARCHAR(500) DEFAULT NULL,
         signature VARCHAR(200) DEFAULT NULL,
         wechat_id VARCHAR(100) DEFAULT NULL,
+        qq_id VARCHAR(15) DEFAULT NULL,
         role ENUM('user', 'admin') DEFAULT 'user',
         status ENUM('active', 'inactive', 'banned') DEFAULT 'active',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

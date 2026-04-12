@@ -14,7 +14,7 @@ const viewExchange = async (req, res) => {
     }
 
     const [users] = await pool.execute(
-      'SELECT id, nickname, wechat_id FROM users WHERE id = ? AND status = "active"',
+      'SELECT id, nickname, wechat_id, qq_id FROM users WHERE id = ? AND status = "active"',
       [targetUserId]
     );
 
@@ -26,7 +26,8 @@ const viewExchange = async (req, res) => {
     return success(res, {
       userId: user.id,
       nickname: user.nickname,
-      wechatId: user.wechat_id || null
+      wechatId: user.wechat_id || null,
+      qqId: user.qq_id || null
     }, '获取成功');
   } catch (err) {
     console.error('查看微信号失败:', err);

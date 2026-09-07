@@ -40,6 +40,7 @@ const initDatabase = async () => {
     console.log('数据库时区设置为UTC+8');
     
     // 先删除所有表（按依赖关系顺序）
+    await connection.execute('DROP TABLE IF EXISTS user_feedbacks');
     await connection.execute('DROP TABLE IF EXISTS notifications');
     await connection.execute('DROP TABLE IF EXISTS wechat_exchange');
     await connection.execute('DROP TABLE IF EXISTS comments');
@@ -47,7 +48,7 @@ const initDatabase = async () => {
     await connection.execute('DROP TABLE IF EXISTS post_subcategories');
     await connection.execute('DROP TABLE IF EXISTS post_categories');
     await connection.execute('DROP TABLE IF EXISTS users');
-    console.log('删除所有现有表（含旧版 comments / wechat_exchange）');
+    console.log('删除所有现有表（含旧版 comments / wechat_exchange / user_feedbacks）');
     
     // 创建用户表
     await connection.execute(`
@@ -139,8 +140,9 @@ const initDatabase = async () => {
         id INT PRIMARY KEY AUTO_INCREMENT,
         user_id INT NOT NULL,
         sender_id INT DEFAULT NULL,
-        type ENUM('system') NOT NULL,
+        type ENUM('system', 'comment', 'reply') NOT NULL,
         content VARCHAR(500) NOT NULL,
+        post_id INT DEFAULT NULL,
         related_id INT DEFAULT NULL,
         is_read BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -154,6 +156,26 @@ const initDatabase = async () => {
       )
     `);
     console.log('通知表创建成功');
+
+    // 创建用户反馈表
+    await connection.execute(`
+      CREATE TABLE user_feedbacks (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        user_id INT DEFAULT NULL,
+        type ENUM('feature', 'bug', 'report', 'other') NOT NULL,
+        description VARCHAR(300) NOT NULL,
+        status ENUM('pending', 'reviewed', 'resolved') DEFAULT 'pending',
+        admin_reply VARCHAR(500) DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+        INDEX idx_user (user_id),
+        INDEX idx_type (type),
+        INDEX idx_status (status),
+        INDEX idx_created (created_at)
+      )
+    `);
+    console.log('用户反馈表创建成功');
 
     // 表已在上方 DROP + CREATE 重建，无需额外清空
 
